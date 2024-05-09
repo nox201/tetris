@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<head>
+	<style>
+		body{
+			min-height: 100%;
+			min-width: 100%;
+			background: #B8E1FC;
+			background: radial-gradient(circle farthest-corner at center center, #B8E1FC 0%, #231421 100%);
+		}
+		.title{
+			font-family: "Tahoma";
+			font-weight: 900;
+			font-size: 80pt;
+			letter-spacing: 3px;
+			color: #000;
+			text-shadow: -1px 1px 0px #aeb8fe, 1px 1px 0px #aeb8fe, 1px -1px 0px #aeb8fe, -1px -1px 0px #aeb8fe;
+		}
+		.startGame{
+			font-family: "Tahoma";
+			font-weight: 900;
+			font-size: 40px;
+			background-color: #aeb8fe;
+			border: 2px solid black;
+			padding: 16px;
+			margin-bottom: 40px;
+			border-radius: 5px;
+			font-variant: small-caps;
+		}
+		.startGame:hover{
+			color: #aeb8fe;
+			background-color: #000000;
+			border: 2px solid #aeb8fe;
+			cursor: pointer;
+			transition: 0.5s;
+		}
+		#leftContainer{
+			min-width: 33%;
+			text-align: center;
+			vertical-align: top;
+			display: inline-block;
+		}
+		#screenContainer{
+			min-width: 33%;
+			text-align: center;
+			display: inline-block;
+		}
+		#rightContainer{
+			min-width: 33%;
+			text-align: center;
+			display: inline-block;
+		}
+		#screen{
+			height: 800px;
+			width: 400px;
+			border: 2px solid black;
+			background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+			background-size: 400% 400%;
+			animation: gradient 15s ease infinite;
+			z-index: 1000;
+		}
+		@keyframes gradient {
+			0% {background-position: 0% 50%;}
+			50% {background-position: 100% 50%;}
+			100% {background-position: 0% 50%;}
+		}
+		#gameOver{
+			display: none;
+			position: absolute;
+			width: 31%;
+			top: 30%;
+			left: 34%;
+			text-align: center;
+			background-color: #000000;
+			border: 4px solid #aeb8fe;
+			border-radius: 30px;
+		}
+		#gameOver h2{
+			font-family: "Tahoma";
+			font-weight: 900;
+			font-size: 50px;
+			color: #FFFFFF;
+			font-variant: small-caps;
+		}
+		#gameOver p{
+			font-family: "Tahoma";
+			font-weight: 900;
+			color: #FFFFFF;
+		}
+	</style>
+</head>
+<body>
+	<div id="background">
+		<div>
+			<button onclick="draw()">Advance Frame</button>
+			<button onclick="fall()">Fall</button>
+			<button onclick="setFrameRate('slow')">Start (Slow)</button>
+			<button onclick="setFrameRate('fast')">Start (Fast)</button>
+			<button onclick="setFallRate('slow')">Fall (Slow)</button>
+			<button onclick="setFallRate('fast')">Fall (Fast)</button>
+			<button onclick="setFrameRate('pause')">Stop</button>
+			<button onclick="spawnPiece()">Spawn Piece</button>
+		</div>
+		<div id="leftContainer">
+			<h1 class="title">TETRIS</h1>
+			<button class="startGame" onclick="startNewGame()">Start</button>
+		</div>
+		<div id="screenContainer">
+			<canvas id="screen" width="400px" height="800px"></canvas>
+		</div>
+		<div id="rightContainer">
+			<div><p>score board to go here</p></div>
+		</div>
+		<div id="gameOver">
+			<h2>Game Over!</h2>
+			<p>You scored <span>1234</span> points.</p>
+			<p>Playtime: <span>3 minutes 21 seconds</span></p>
+			<button class="startGame" onclick="startNewGame()">Play Again?</button>
+		</div>
+		<!--<div>
+			<button onclick="draw()">Advance Frame</button>
+			<button onclick="setFrameRate('slow')">Start (Slow)</button>
+			<button onclick="setFrameRate('fast')">Start (Fast)</button>
+			<button onclick="setFrameRate('pause')">Stop</button>
+		</div>-->
+	</div>
+</body>
+
+<script>
+	
+	//TO-DO:
+	//fix the uncaught type errors that appear when pushing a piece against the screen edge
+	
+	//SET UP SCREEN, CONVIENCE VARIABLES
+	let screen = document.getElementById('screen').getContext('2d');
+	let pixelSize = 40;
+	let screenWidth = document.getElementById('screen').width;
+	let screenHeight = document.getElementById('screen').height
+	let width = screenWidth /  pixelSize;
+	let height = screenHeight /  pixelSize;
+	//GAME STATE VARS
+	//let gameIsRunning = false;
+	let gameIsRunning = true;
+	let gameIsOver = false;	
+	let activePiece = false;
+	let canMove = false;
+	let pieces = [];
+
+	//DEBUG OPTIONS
+	let showFallingData = false;
+	let showFallingEdges = false;
+	let showLeftEdges = false;
+	let showRightEdges = false;
+	let showPixelLocations = false;
+	
+	//CREATE STATE
+	let state = create2dArray(width, height);
+	//SET DIRECTION CONSTANTS
+	const UP = 0;
+	const RIGHT = 1;
+	const DOWN = 2;
+	const LEFT = 3;
+	
+	//ADD KEY EVENT LISTENERS
+	document.addEventListener("keydown", changeDirection);
+	function changeDirection(e){
+		switch(e.code){
+			case 'KeyW':
+			case 'ArrowUp':
+				//NO ACTION
+				
+			break;
+			case 'KeyD':
+			case 'ArrowRight':
+				canMove = true;
+				//ITERATE ALL RIGHT EDGES
+				activePiece.rightEdges.forEach((edge) => {
+					//CHECK FOR SCREEN BORDER
+					if(edge[0] === 9){
+						canMove = false;
+					}
+					//DEBUG - SHOWS THE BLOCKS TO THE RIGHT OF RIGHT EDGE
+					if(showRightEdges){
+						//DRAW BLOCKS
+						screen.fillStyle = 'rgba(0,0,0,0.2)';
+						screen.fillRect((activePiece.location[edge][0]  + 1) * pixelSize, (activePiece.location[edge][1]) * pixelSize, pixelSize, pixelSize);
+						//LOG
+						console.log(activePiece.name + ', edge ' + edge + ', right state: ' + state[activePiece.location[edge][0]  + 1][activePiece.location[edge][1]]);
+					}
+					
+					//CHECK STATE - pixel to the right of the location the pixel was rendered at
+					if(state[activePiece.location[edge][0] + 1][activePiece.location[edge][1]] === true){
+						//SET FLAGS
+						canMove = false;
+						//LOG
+						//console.log('pixel to the right occupied');
+					}
+				});
+				if(canMove){
+					//MOVE ACTIVE PIECE
+					activePiece.location.forEach((pixel) => {
+						pixel[0] = (pixel[0] + 1);
+					});
+				}
+			break;
+			case 'KeyS':
+			case 'ArrowDown':
+				//MAKE PIECE FALL FASTER
+				fall(activePiece);
+			break;
+			case 'KeyA':
+			case 'ArrowLeft':
+				//SET FLAG
+				canMove = true;
+				//ITERATE ALL LEFT EDGES
+				activePiece.leftEdges.forEach((edge) => {
+					//CHECK FOR SCREEN BORDER
+					if(edge[0] === 0){
+						canMove = false;
+					}
+					//DEBUG - SHOWS THE BLOCKS BELOW THE FALLING EDGE
+					if(showLeftEdges){
+						//DRAW BLOCKS
+						screen.fillStyle = 'rgba(0,0,0,0.2)';
+						screen.fillRect((activePiece.location[edge][0]  - 1) * pixelSize, (activePiece.location[edge][1]) * pixelSize, pixelSize, pixelSize);
+						//LOG
+						console.log(activePiece.name + ', edge ' + edge + ', left state: ' + state[activePiece.location[edge][0]  - 1][activePiece.location[edge][1]]);
+					}
+					
+					//CHECK STATE - pixel to the left of the location the pixel was rendered at
+					if(state[activePiece.location[edge][0] -  1][activePiece.location[edge][1]] === true){
+						//SET FLAGS
+						canMove = false;
+						//LOG
+						//console.log('pixel to the left occupied');
+					}
+				});
+				//CHECK MOVING LEFT NOT BLOCKED
+				if(canMove){
+					//MOVE ACTIVE PIECE
+					activePiece.location.forEach((pixel) => {
+						pixel[0] = (pixel[0] - 1);
+					});
+				}
+			break;
+			case 'KeyE':
+			
+				console.log('key e pressed');
+			
+				//SET FLAG
+				canMove = true;
+				/*//ITERATE ALL LEFT EDGES
+				activePiece.leftEdges.forEach((edge) => {
+					//CHECK FOR SCREEN BORDER
+					if(edge[0] === 0){
+						canMove = false;
+					}
+					//DEBUG - SHOWS THE BLOCKS BELOW THE FALLING EDGE
+					if(showLeftEdges){
+						//DRAW BLOCKS
+						screen.fillStyle = 'rgba(0,0,0,0.2)';
+						screen.fillRect((activePiece.location[edge][0]  - 1) * pixelSize, (activePiece.location[edge][1]) * pixelSize, pixelSize, pixelSize);
+						//LOG
+						console.log(activePiece.name + ', edge ' + edge + ', left state: ' + state[activePiece.location[edge][0]  - 1][activePiece.location[edge][1]]);
+					}
+					
+					//CHECK STATE - pixel to the left of the location the pixel was rendered at
+					if(state[activePiece.location[edge][0] -  1][activePiece.location[edge][1]] === true){
+						//SET FLAGS
+						canMove = false;
+						//LOG
+						//console.log('pixel to the left occupied');
+					}
+				});
+				*/
+				
+				//CHECK ROTATING NOT BLOCKED
+				if(canMove){
+					//SWITCH ACTIVE PIECE ROTATION
+					activePiece.rotate();
+				}
+			break;
+		}
+		//console.log('current direction is ' + direction);
+	}
+	
+	//CREATE PIECE OBJECT
+	function Piece(name, x, y) {
+		this.name = name;
+		this.falling = true;
+		this.rotation = 0;
+		switch(name){
+			case 'cube':
+				this.colour = '#ff0000';
+				this.location = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
+				//[0][1]
+				//[2][3]
+			break;
+			case 'el':
+				this.colour = '#f79a05';
+				this.location = [[x,y],[x,y+1],[x,y+2],[x+1,y+2]];
+				//[0]
+				//[1]
+				//[2][3]
+			break;
+			case 'jay':
+				this.colour = '#fbff00';
+				this.location = [[x,y],[x,y+1],[x,y+2],[x-1,y+2]];
+				//   [0]
+				//   [1]
+				//[3][2]
+			break;
+			case 'tie':
+				this.colour = '#09ed0d';
+				this.location = [[x,y],[x+1,y],[x+2,y],[x+1,y+1]];
+				//[0][1][2]
+				//   [3]
+			break;
+			case 'long':
+				this.colour = '#02f2e6';
+				this.location = [[x,y],[x,y+1],[x,y+2],[x,y+3]];
+				//[0]
+				//[1]
+				//[2]
+				//[3]
+			break;
+			case 'ess':
+				this.colour = '#023af2';
+				this.location = [[x,y],[x-1,y],[x-1,y+1],[x-2,y+1]];
+				//   [1][0]
+				//[3][2]
+			break;
+			case 'bed':
+				this.colour = '#cf05f2';
+				this.location = [[x,y],[x+1,y],[x+1,y+1],[x+2,y+1]];
+				//[0][1]
+				//   [2][3]
+			break;
+			default:
+				//ERROR
+				console.log('Unknown name provided: ' + name);
+			break;
+		}
+		//UPDATES THE LOCATION MATRIX
+		this.rotate = function(){
+		
+			console.log('before rotate: ' + this.rotation);
+		
+			switch(this.name){
+				case 'el':
+					switch(this.rotation){
+						case 0:
+						
+							//i think i want to make all these rotate around [1], not [0]
+							//also i feel like these matrix transforms could be stored differently. Maybe an array of values so the final thing is 
+							//this.location = locationMatrix[this.name][this.rotation]
+						
+							//[0]
+							//[1]
+							//[2][3]
+							this.location = [
+								[this.location[0][0],this.location[0][1]],
+								[this.location[1][0]-1,this.location[1][1]-1],
+								[this.location[2][0]-2,this.location[2][1]-2],
+								[this.location[3][0]-3,this.location[3][1]-1]
+							];
+							this.rotation = 1;
+						break;
+						case 1:
+							//[2][1][0]
+							//[3]
+							this.location = [
+								[this.location[0][0],this.location[0][1]],
+								[this.location[1][0]+1,this.location[1][1]+1],
+								[this.location[2][0]+2,this.location[2][1]+2],
+								[this.location[3][0]+1,this.location[3][1]-1]
+							];
+							this.rotation = 2;
+						break;
+						case 2:
+						
+							//still broken?
+						
+							//[3][2]
+							//   [1]
+							//   [0]
+							this.location = [
+								[this.location[0][0],this.location[0][1]],
+								[this.location[1][0]+1,this.location[1][1]+1],
+								[this.location[2][0]+2,this.location[2][1]+2],
+								[this.location[3][0]+3,this.location[3][1]-1]
+							];
+							this.rotation = 3;
+						break;
+						case 3:
+							//      [3]
+							//[0][1][2]
+							this.location = [
+								[this.location[0][0],this.location[0][1]],
+								[this.location[1][0]-1,this.location[1][1]-1],
+								[this.location[2][0]-2,this.location[2][1]-2],
+								[this.location[3][0]-1,this.location[3][1]-3]
+							];
+							this.rotation = 0;
+						break;
+					}
+				break;
+			}
+			console.log('after rotate: ' + this.rotation);
+		}
+		//SETS THE ARRAY INDEXS TO CHECK SPACES BELOW FOR FALLING, DEPENDANT ON THE PIECE TYPE AND ROTATION
+		this.setFallingEdges = function(){
+			switch(this.rotation){
+				case 0:
+					switch(this.name){
+						case 'cube':
+						case 'el':
+						case 'jay':
+							this.fallingEdges = [2,3];
+						break;
+						case 'tie':
+						case 'ess':
+						case 'bed':
+							this.fallingEdges = [0,2,3];
+						break;
+						case 'long':
+							this.fallingEdges = [3];
+						break;
+					}
+				break;
+				case 1:
+					switch(this.name){
+						case 'el':
+							this.fallingEdges = [0,1,3];
+						break;
+					}
+				break;
+				case 2:
+					switch(this.name){
+						case 'el':
+							this.fallingEdges = [2,3];
+						break;
+					}
+				break;
+				case 3:
+					switch(this.name){
+						case 'el':
+							this.fallingEdges = [0,1,2];
+						break;
+					}
+				break;
+				
+			}
+		}
+		//SETS THE ARRAY INDEXS TO CHECK SPACES TO THE LEFT, DEPENDANT ON THE PIECE TYPE AND ROTATION
+		this.setLeftEdges = function(){
+			switch(this.rotation){
+				case 0:
+					switch(this.name){
+						case 'cube':
+						case 'bed':
+							this.leftEdges = [0,2];
+						break;
+						case 'el':
+							this.leftEdges = [0,1,2];
+						break;
+						case 'jay':
+							this.leftEdges = [0,1,3];
+						break;
+						case 'tie':
+							this.leftEdges = [0,3];
+						break;
+						case 'ess':
+							this.leftEdges = [1,3];
+						break;
+						case 'long':
+							this.leftEdges = [0,1,2,3];
+						break;
+					}
+				break;
+				case 1:
+					
+				break;
+				case 2:
+					
+				break;
+				case 3:
+					
+				break;
+				
+			}
+		}
+		//SETS THE ARRAY INDEXS TO CHECK SPACES TO THE RIGHT, DEPENDANT ON THE PIECE TYPE AND ROTATION
+		this.setRightEdges = function(){
+			switch(this.rotation){
+				case 0:
+					switch(this.name){
+						case 'cube':
+						case 'bed':
+							this.rightEdges = [1,3];
+						break;
+						case 'el':
+							this.rightEdges = [0,1,3];
+						break;
+						case 'jay':
+							this.rightEdges = [0,1,2];
+						break;
+						case 'tie':
+							this.rightEdges = [2,3];
+						break;
+						case 'ess':
+							this.rightEdges = [0,2];
+						break;
+						case 'long':
+							this.rightEdges = [0,1,2,3];
+						break;
+					}
+				break;
+				case 1:
+					
+				break;
+				case 2:
+					
+				break;
+				case 3:
+					
+				break;
+				
+			}
+		}
+	}
+	
+	//--
+
+	//DRAW FUNCTION
+	function draw(){
+		
+		//LOG DRAW LOOP
+		console.log('drawn');
+		
+		//CLEAR SCREEN
+		screen.clearRect(0, 0, screenWidth, screenHeight);
+		//CLEAR STATE
+		state = create2dArray(width, height);
+		
+		//CHECK IF GAME IS RUNNING
+		if(gameIsRunning){
+			
+			//CHECK IF ACTIVE PIECE
+			if(!activePiece){
+				spawnPiece();
+			}
+		
+			//RENDER PIECES
+			pieces.forEach((piece) => renderPiece(piece));
+			
+			//CHECK FOR GAME OVER
+			if(gameIsOver){
+				//STOP DRAW LOOP
+				setFrameRate('pause');
+				setFallRate('pause');
+				//DISPLAY GAME OVER
+				//alert('Game Over');
+				document.getElementById('gameOver').style.display = 'block';
+				//SET FLAG
+				gameIsRunning = false;
+			}else{
+				//FALL PIECES
+				//pieces.forEach((piece) => fall(piece));
+			}
+		
+		}else{
+			//EMPTY PIECES
+			pieces = [];
+		}
+
+	}
+	
+	//FALL FUNCTION
+	//this should run seperately to the draw loop, allowing the draw loop to fully function as a frame rate,
+	//and also allow for variable speed change over time, without affecting the rest of the game
+	function fallActivePiece(){
+		//FALL PIECES
+		pieces.forEach((piece) => fall(piece));
+	}
+	
+	//RENDER PIECE ON SCREEN
+	function renderPiece(piece){
+		for(i = 0; i < piece.location.length; i++){
+			//DRAW PIXEL
+			screen.fillStyle = piece.colour;
+			screen.fillRect(piece.location[i][0] * pixelSize, piece.location[i][1] * pixelSize, pixelSize, pixelSize);
+			//ONLY ADD STATIONARY PIECES TO THE STATE
+			//prevents a bug where tie/ess/bed pieces that fall and move at the same time detect their own locations and get stuck in the air
+			if(!piece.falling){
+				//ADD PIECE LOCATION TO SCREEN STATE
+				state[piece.location[i][0]][piece.location[i][1]] = true;
+			}
+		}
+		
+		if(showPixelLocations){
+			console.log(piece.location);
+		}
+		
+	}
+	
+	//CALCULATES IF A PIECE IS FALLING, AND IF SO, UPDATES ITS LOCATION
+	function fall(piece){
+		//CHECK IF PIECE IS FALLING
+		if(piece.falling){
+			
+			//DEBUG - SHOWS FALLING DATA
+			if(showFallingData){
+				console.log(piece.name + ' is falling');
+				console.log('location: ');
+				console.log(piece.location);
+				console.log('state: ');
+				console.log(state);
+			}
+			
+			//SET FLAG
+			canFall = true;
+			
+			//CHECK IF THE PIECE IS ABLE TO MOVE DOWNWARDS
+			//tests each pieces 'falling edge' (the most downward pixels of each piece in each rotation) for anything below it
+			piece.fallingEdges.forEach((edge) => {
+				
+				//debug
+				if(showPixelLocations){
+					console.log('x: ' + piece.location[edge][0]);
+					console.log('y: ' + piece.location[edge][1]);
+					console.log('below state: ' + state[piece.location[edge][0]][piece.location[edge][1] + 1]);
+					console.log('below state check: ' + state[0][2]);
+					console.log('below state check: ' + state[1][2]);
+				}
+
+				//DEBUG - SHOWS THE BLOCKS BELOW THE FALLING EDGE
+				if(showFallingEdges){
+					//DRAW BLOCKS
+					screen.fillStyle = 'rgba(0,0,0,0.2)';
+					screen.fillRect(piece.location[edge][0] * pixelSize, (piece.location[edge][1] + 1 ) * pixelSize, pixelSize, pixelSize);
+					//LOG
+					//console.log(piece.name + ', edge ' + edge + ', below state: ' + state[piece.location[edge][0]][piece.location[edge][1] + 1]);
+				}
+				
+				//CHECK STATE - pixel below the location the pixel was rendered at
+				if(state[piece.location[edge][0]][piece.location[edge][1] + 1] === true){
+					//SET FLAGS
+					canFall = false;
+					//LOG
+					//console.log('pixel below occupied');
+				}
+				//CHECK FLOOR
+				if(piece.location[edge][1] === height - 1){
+					//SET FLAG
+					canFall = false;
+					//LOG
+					//console.log('pixel is on the floor');
+				}
+				
+			});
+			
+			//LOG CAN FALL FLAG
+			//console.log('canFall: ' + canFall);
+
+			//CHECK IF PIECE CAN FALL
+			if(canFall){
+				//UPDATE LOCATIONS
+				for(i = 0; i < piece.location.length; i++){
+					//INCREMENT LOCATION Y AXIS (SECOND ARRAY PARAMETER) BY 1
+					piece.location[i][1] = piece.location[i][1] + 1;
+				}
+			}else{
+				//SET FALLING
+				piece.falling = false;
+				//SET ACTIVE PIECE
+				activePiece = false;
+			}
+			
+		}
+		
+		
+	}
+
+	//SPAWN PIECE
+	function spawnPiece(){
+		//CHOOSE RANDOM X POSITION
+		//exclude the 0,1 and 8,9 x positions to allow all pieces to spawn in the screen ok
+		x = getRandomInt(2,7);
+		y = 0;
+		//SET SPAWN PIECES
+		//****************************IN TESTING
+		//let spawnPieces = ['cube','el','jay','tie','long','ess','bed'];
+		let spawnPieces = ['el'];
+		//CREATE NEW PIECE
+		let newPiece = new Piece(spawnPieces[Math.floor(Math.random() * spawnPieces.length)], x, y)
+		//IF NEW SPAWNED PIECE HAS ANY PIXEL THAT ALREADY EXISTS IN PIECES, GAME OVER
+		newPiece.location.forEach((newPixel) => {
+			pieces.forEach((piece) => {
+				piece.location.forEach((existingPiece) => {
+					if(existingPiece[0] === newPixel[0] && existingPiece[1] === newPixel[1]){
+						//OVERLAP - GAME OVER
+						gameOver();
+					}
+				})
+			})
+		});
+		//CREATE NEW RANDOM PIECE
+		activePiece = new Piece(spawnPieces[Math.floor(Math.random() * spawnPieces.length)], x, y);
+		//SET EDGES ON ACTIVE PIECE
+		activePiece.setFallingEdges();
+		activePiece.setLeftEdges();
+		activePiece.setRightEdges();
+		//activePiece.rotate();
+		//ADD ACTIVE PIECE
+		pieces.push(activePiece);
+	}
+	
+	//START NEW GAME
+	function startNewGame(){
+		//HIDE GAME OVER DIV
+		document.getElementById('gameOver').style.display = 'none';
+		//EMPTY STATE
+		state = create2dArray(width, height);
+		//EMPTY PIECES
+		pieces = [];
+		//SET FLAGS
+		gameIsRunning = true;
+		gameIsOver = false;		
+		activePiece = false;
+		canMove = false;
+		spawnPiece();
+		//SET FRAME RATE
+		setFrameRate('fast');
+		//SET FALL RATE
+		setFallRate('slow');
+	}
+	
+	//GAME OVER
+	function gameOver(){
+		//SET FLAG
+		gameIsOver = true;
+	}
+	
+	//UTILITY 2D ARRAY FUNCTION
+	function create2dArray(rows, cols){
+		//RETURN 2D ARRAY FILLED WITH 'FALSE' VALUES
+		return Array.from({length: rows}, () => Array(cols).fill(false));
+	}
+	//UTILITY RANDOM INT FUNCTION (INCLUSIVE)
+	function getRandomInt(min, max){
+		const minCeiled = Math.ceil(min);
+		const maxFloored = Math.floor(max);
+		//RETURN RANDOM INT
+		return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+	}
+	
+	//SET FRAME RATE
+	function setFrameRate(frameRate){
+		//STOP CURRENT REPEATER
+		if(typeof repeater !== 'undefined'){
+			clearInterval(repeater);
+		}
+		//RUN THE CANVAS
+		switch(frameRate){
+			case 'pause':
+				clearInterval(repeater);
+			break;
+			case 'slow':
+				repeater = setInterval(draw, 200);
+			break;
+			case 'medium':
+				repeater = setInterval(draw, 100);
+			break;
+			case 'fast':
+				repeater = setInterval(draw, 60);
+			break;
+			case 'destroy':
+				repeater = setInterval(draw, 25);
+			break;
+		}
+	}
+	
+	//SET RATE AT WHICH PIECES SHOULD FALL
+	function setFallRate(fallRate){
+		//STOP CURRENT REPEATER
+		if(typeof fallRepeater !== 'undefined'){
+			clearInterval(fallRepeater);
+		}
+		//RUN THE CANVAS
+		switch(fallRate){
+			case 'pause':
+				clearInterval(fallRepeater);
+			break;
+			case 'slow':
+				fallRepeater = setInterval(fallActivePiece, 300);
+			break;
+			case 'medium':
+				fallRepeater = setInterval(fallActivePiece, 250);
+			break;
+			case 'fast':
+				fallRepeater = setInterval(fallActivePiece, 200);
+			break;
+			case 'destroy':
+				fallRepeater = setInterval(fallActivePiece, 100);
+			break;
+		}
+	}
+	
+	//START
+	//setFrameRate('slow');
+	
+</script>
