@@ -98,6 +98,7 @@
 			<button onclick="setFallRate('slow')">Fall (Slow)</button>
 			<button onclick="setFallRate('fast')">Fall (Fast)</button>
 			<button onclick="setFrameRate('pause')">Stop</button>
+			<button onclick="setFallRate('pause')">Stop Falling</button>
 			<button onclick="spawnPiece()">Spawn Piece</button>
 		</div>
 		<div id="leftContainer">
@@ -128,7 +129,10 @@
 <script>
 	
 	//TO-DO:
-	//fix the uncaught type errors that appear when pushing a piece against the screen edge
+	//fix the uncaught type errors that appear when pushing a piece against the screen edge (copy undefined check in rotation by just checking canMove?
+	//refactor the switch cases, I think they can be stored as arrays instead?
+	//replace rotate as the E key to spacebar - issue is i think spacebar will activate the last focused element, which is the start game button - causing the game to restart every time you try and rotate a piece
+	
 	
 	//SET UP SCREEN, CONVIENCE VARIABLES
 	let screen = document.getElementById('screen').getContext('2d');
@@ -144,12 +148,14 @@
 	let activePiece = false;
 	let canMove = false;
 	let pieces = [];
+	let pixelId = 0;
 
 	//DEBUG OPTIONS
 	let showFallingData = false;
 	let showFallingEdges = false;
 	let showLeftEdges = false;
 	let showRightEdges = false;
+	let showRotationData = false;
 	let showPixelLocations = false;
 	
 	//CREATE STATE
@@ -243,97 +249,125 @@
 				}
 			break;
 			case 'KeyE':
-			
-				console.log('key e pressed');
-			
 				//SET FLAG
 				canMove = true;
-				/*//ITERATE ALL LEFT EDGES
-				activePiece.leftEdges.forEach((edge) => {
-					//CHECK FOR SCREEN BORDER
-					if(edge[0] === 0){
-						canMove = false;
-					}
-					//DEBUG - SHOWS THE BLOCKS BELOW THE FALLING EDGE
-					if(showLeftEdges){
-						//DRAW BLOCKS
-						screen.fillStyle = 'rgba(0,0,0,0.2)';
-						screen.fillRect((activePiece.location[edge][0]  - 1) * pixelSize, (activePiece.location[edge][1]) * pixelSize, pixelSize, pixelSize);
-						//LOG
-						console.log(activePiece.name + ', edge ' + edge + ', left state: ' + state[activePiece.location[edge][0]  - 1][activePiece.location[edge][1]]);
+				//ITERATE PIECE PIXELS
+				activePiece.location.forEach((pixel) => {
+					
+					if(showRotationData){
+						console.log('checking x location: ' + (pixel[0] + activePiece.rotationMatrix[activePiece.rotation][pixelId][0]));
 					}
 					
-					//CHECK STATE - pixel to the left of the location the pixel was rendered at
-					if(state[activePiece.location[edge][0] -  1][activePiece.location[edge][1]] === true){
-						//SET FLAGS
+					//CHECK IF ROTATION WILL BE OFF THE SCREEN
+					if((pixel[0] + activePiece.rotationMatrix[activePiece.rotation][pixelId][0]) < 0){
+						//CANT ROTATE, ON LEFT EDGE
 						canMove = false;
-						//LOG
-						//console.log('pixel to the left occupied');
 					}
+					if((pixel[0] + activePiece.rotationMatrix[activePiece.rotation][pixelId][0]) > 9){
+						//CANT ROTATE, ON RIGHT EDGE
+						canMove = false;
+					}
+					//ONLY DO STATE CHECK IF NECCESSARY - ALSO PREVENTS UNDEFINED TYPE ERROR CAUSED BY CHECKING UNDEFINED ARRAY ELEMENT
+					if(canMove){
+						//CHECK STATE - CHECKS IF ROTATION WILL BE OCCUPIED BY EXISTING PIECE
+						if(state[activePiece.location[pixelId][0] + activePiece.rotationMatrix[activePiece.rotation][pixelId][0]][activePiece.location[pixelId][1] + activePiece.rotationMatrix[activePiece.rotation][pixelId][1]] === true){
+							//SET FLAG
+							canMove = false;
+							//LOG
+							if(showRotationData){
+								console.log('existing piece blocks rotation');
+							}
+						}
+					}
+					//if its on the edge can i move the piece to the side instead of blocking rotation entirely?
+					
+					//INCREMENT PIXEL ID
+					pixelId++;
 				});
-				*/
-				
+				//RESET PIXEL ID
+				pixelId = 0;
 				//CHECK ROTATING NOT BLOCKED
 				if(canMove){
-					//SWITCH ACTIVE PIECE ROTATION
+					//ROTATE PIECE
 					activePiece.rotate();
 				}
 			break;
 		}
-		//console.log('current direction is ' + direction);
 	}
 	
-	//CREATE PIECE OBJECT
+	//--
+	
+	//CREATE PIECE CLASS
 	function Piece(name, x, y) {
 		this.name = name;
 		this.falling = true;
 		this.rotation = 0;
 		switch(name){
 			case 'cube':
+				//[2][3]
+				//[0][1]
 				this.colour = '#ff0000';
 				this.location = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
-				//[0][1]
-				//[2][3]
+				//ROTATION MATRIX WILL DESCRIBE THE POSITION CHANGE OF EACH PIXEL DURING EACH ROTATION ORIENTATION
+				//KEY WILL BE THE CURRENT ROTATION, CONTAINING AN ARRAY OF THE MOVEMENTS FOR EACH OF THE 4 PIXELS
+				this.rotationMatrix = [	
+					[[0,0],[0,0],[0,0],[0,0]],
+					[[0,0],[0,0],[0,0],[0,0]],
+					[[0,0],[0,0],[0,0],[0,0]],
+					[[0,0],[0,0],[0,0],[0,0]]
+				]
 			break;
 			case 'el':
-				this.colour = '#f79a05';
-				this.location = [[x,y],[x,y+1],[x,y+2],[x+1,y+2]];
 				//[0]
 				//[1]
 				//[2][3]
+				this.colour = '#f79a05';
+				this.location = [[x,y],[x,y+1],[x,y+2],[x+1,y+2]];
+				this.rotationMatrix = [	
+					[[+1,+1],[0,0],[-1,-1],[-2,0]],
+					[[-1,+1],[0,0],[+1,-1],[0,-2]],
+					[[-1,-1],[0,0],[+1,+1],[+2,0]],
+					[[+1,-1],[0,0],[-1,+1],[0,+2]]
+				]
 			break;
 			case 'jay':
-				this.colour = '#fbff00';
-				this.location = [[x,y],[x,y+1],[x,y+2],[x-1,y+2]];
 				//   [0]
 				//   [1]
 				//[3][2]
+				this.colour = '#fbff00';
+				this.location = [[x,y],[x,y+1],[x,y+2],[x-1,y+2]];
+				this.rotationMatrix = [	
+					[[+1,+1],[0,0],[-1,-1],[0,-2]],
+					[[-1,+1],[0,0],[+1,-1],[+2,0]],
+					[[-1,-1],[0,0],[+1,+1],[0,+2]],
+					[[+1,-1],[0,0],[-1,+1],[-2,0]]
+				]
 			break;
 			case 'tie':
-				this.colour = '#09ed0d';
-				this.location = [[x,y],[x+1,y],[x+2,y],[x+1,y+1]];
 				//[0][1][2]
 				//   [3]
+				this.colour = '#09ed0d';
+				this.location = [[x,y],[x+1,y],[x+2,y],[x+1,y+1]];
 			break;
 			case 'long':
-				this.colour = '#02f2e6';
-				this.location = [[x,y],[x,y+1],[x,y+2],[x,y+3]];
 				//[0]
 				//[1]
 				//[2]
 				//[3]
+				this.colour = '#02f2e6';
+				this.location = [[x,y],[x,y+1],[x,y+2],[x,y+3]];
 			break;
 			case 'ess':
-				this.colour = '#023af2';
-				this.location = [[x,y],[x-1,y],[x-1,y+1],[x-2,y+1]];
 				//   [1][0]
 				//[3][2]
+				this.colour = '#023af2';
+				this.location = [[x,y],[x-1,y],[x-1,y+1],[x-2,y+1]];
 			break;
 			case 'bed':
-				this.colour = '#cf05f2';
-				this.location = [[x,y],[x+1,y],[x+1,y+1],[x+2,y+1]];
 				//[0][1]
 				//   [2][3]
+				this.colour = '#cf05f2';
+				this.location = [[x,y],[x+1,y],[x+1,y+1],[x+2,y+1]];
 			break;
 			default:
 				//ERROR
@@ -342,70 +376,32 @@
 		}
 		//UPDATES THE LOCATION MATRIX
 		this.rotate = function(){
-		
-			console.log('before rotate: ' + this.rotation);
-		
-			switch(this.name){
-				case 'el':
-					switch(this.rotation){
-						case 0:
-						
-							//i think i want to make all these rotate around [1], not [0]
-							//also i feel like these matrix transforms could be stored differently. Maybe an array of values so the final thing is 
-							//this.location = locationMatrix[this.name][this.rotation]
-						
-							//[0]
-							//[1]
-							//[2][3]
-							this.location = [
-								[this.location[0][0],this.location[0][1]],
-								[this.location[1][0]-1,this.location[1][1]-1],
-								[this.location[2][0]-2,this.location[2][1]-2],
-								[this.location[3][0]-3,this.location[3][1]-1]
-							];
-							this.rotation = 1;
-						break;
-						case 1:
-							//[2][1][0]
-							//[3]
-							this.location = [
-								[this.location[0][0],this.location[0][1]],
-								[this.location[1][0]+1,this.location[1][1]+1],
-								[this.location[2][0]+2,this.location[2][1]+2],
-								[this.location[3][0]+1,this.location[3][1]-1]
-							];
-							this.rotation = 2;
-						break;
-						case 2:
-						
-							//still broken?
-						
-							//[3][2]
-							//   [1]
-							//   [0]
-							this.location = [
-								[this.location[0][0],this.location[0][1]],
-								[this.location[1][0]+1,this.location[1][1]-1],
-								[this.location[2][0]+2,this.location[2][1]-2],
-								[this.location[3][0]+3,this.location[3][1]-1]
-							];
-							this.rotation = 3;
-						break;
-						case 3:
-							//      [3]
-							//[0][1][2]
-							this.location = [
-								[this.location[0][0],this.location[0][1]],
-								[this.location[1][0]-1,this.location[1][1]-1],
-								[this.location[2][0]-2,this.location[2][1]-2],
-								[this.location[3][0]-1,this.location[3][1]+1]
-							];
-							this.rotation = 0;
-						break;
-					}
-				break;
+			//LOG
+			if(showPixelLocations){
+				console.log('Before Rotation:  ' + this.rotation + ': ' + this.location);
+				console.log(this.rotationMatrix);
 			}
-			console.log('after rotate: ' + this.rotation);
+			//DETERMINE NEW PIXEL POSITIONS FROM ROTATION MATRIX
+			this.location = [
+				[this.location[0][0] + this.rotationMatrix[this.rotation][0][0], this.location[0][1] + this.rotationMatrix[this.rotation][0][1]],
+				[this.location[1][0] + this.rotationMatrix[this.rotation][1][0], this.location[1][1] + this.rotationMatrix[this.rotation][1][1]],
+				[this.location[2][0] + this.rotationMatrix[this.rotation][2][0], this.location[2][1] + this.rotationMatrix[this.rotation][2][1]],
+				[this.location[3][0] + this.rotationMatrix[this.rotation][3][0], this.location[3][1] + this.rotationMatrix[this.rotation][3][1]],
+			]
+			//INCREMENT ROTATION
+			this.rotation = this.rotation +  1;
+			//CHECK FOR RESET ROTATION
+			if(this.rotation === 4){
+				this.rotation = 0;
+			}
+			//RE-SET EDGES NOW ROTATION HAS BEEN UPDATED
+			this.setFallingEdges();
+			this.setLeftEdges();
+			this.setRightEdges();
+			//LOG
+			if(showPixelLocations){
+				console.log('After Rotation:  ' + this.rotation + ': ' + this.location);
+			}
 		}
 		//SETS THE ARRAY INDEXS TO CHECK SPACES BELOW FOR FALLING, DEPENDANT ON THE PIECE TYPE AND ROTATION
 		this.setFallingEdges = function(){
@@ -429,22 +425,38 @@
 				break;
 				case 1:
 					switch(this.name){
+						case 'cube':
+							this.fallingEdges = [2,3]
+						break;
 						case 'el':
 							this.fallingEdges = [0,1,3];
+						break;
+						case 'jay':
+							this.fallingEdges = [0,1,2];
 						break;
 					}
 				break;
 				case 2:
 					switch(this.name){
+						case 'cube':
+							this.fallingEdges = [2,3]
+						break;
 						case 'el':
-							this.fallingEdges = [2,3];
+						case 'jay':
+							this.fallingEdges = [0,3];
 						break;
 					}
 				break;
 				case 3:
 					switch(this.name){
+						case 'cube':
+							this.fallingEdges = [2,3]
+						break;
 						case 'el':
 							this.fallingEdges = [0,1,2];
+						break;
+						case 'jay':
+							this.fallingEdges = [0,1,3];
 						break;
 					}
 				break;
@@ -478,13 +490,39 @@
 					}
 				break;
 				case 1:
-					
+					switch(this.name){
+						case 'cube':
+							this.leftEdges = [0,2];
+						break;
+						case 'el':
+						case 'jay':
+							this.leftEdges = [2,3];
+						break;
+					}
 				break;
 				case 2:
-					
+					switch(this.name){
+						case 'cube':
+							this.leftEdges = [0,2];
+						break;
+						case 'el':
+							this.leftEdges = [0,1,3];
+						break;
+						case 'jay':
+							this.leftEdges = [0,1,2];
+						break;
+					}
 				break;
 				case 3:
-					
+					switch(this.name){
+						case 'cube':
+							this.leftEdges = [0,2];
+						break;
+						case 'el':
+						case 'jay':
+							this.leftEdges = [0,3];
+						break;
+					}
 				break;
 				
 			}
@@ -516,13 +554,41 @@
 					}
 				break;
 				case 1:
-					
+					switch(this.name){
+						case 'cube':
+							this.rightEdges = [1,3];
+						break;
+						case 'el':
+							this.rightEdges = [0,3];
+						break;
+						case 'jay':
+							this.rightEdges = [0,3];
+						break;
+					}
 				break;
 				case 2:
-					
+					switch(this.name){
+						case 'cube':
+							this.rightEdges = [1,3];
+						break;
+						case 'el':
+							this.rightEdges = [0,1,2];
+						break;
+						case 'jay':
+							this.rightEdges = [0,1,3];
+						break;
+					}
 				break;
 				case 3:
-					
+					switch(this.name){
+						case 'cube':
+							this.rightEdges = [1,3];
+						break;
+						case 'el':
+						case 'jay':
+							this.rightEdges = [2,3];
+						break;
+					}
 				break;
 				
 			}
@@ -535,7 +601,7 @@
 	function draw(){
 		
 		//LOG DRAW LOOP
-		console.log('drawn');
+		//console.log('drawn');
 		
 		//CLEAR SCREEN
 		screen.clearRect(0, 0, screenWidth, screenHeight);
@@ -589,6 +655,12 @@
 			//DRAW PIXEL
 			screen.fillStyle = piece.colour;
 			screen.fillRect(piece.location[i][0] * pixelSize, piece.location[i][1] * pixelSize, pixelSize, pixelSize);
+			//LOG
+			if(showPixelLocations){
+				screen.font = '30px Arial';
+				screen.fillStyle = '#FFFFFF';
+				screen.fillText(i, piece.location[i][0] * pixelSize, piece.location[i][1] * pixelSize  + pixelSize);
+			}
 			//ONLY ADD STATIONARY PIECES TO THE STATE
 			//prevents a bug where tie/ess/bed pieces that fall and move at the same time detect their own locations and get stuck in the air
 			if(!piece.falling){
@@ -598,7 +670,7 @@
 		}
 		
 		if(showPixelLocations){
-			console.log(piece.location);
+			//console.log(piece.location);
 		}
 		
 	}
@@ -639,7 +711,7 @@
 					screen.fillStyle = 'rgba(0,0,0,0.2)';
 					screen.fillRect(piece.location[edge][0] * pixelSize, (piece.location[edge][1] + 1 ) * pixelSize, pixelSize, pixelSize);
 					//LOG
-					//console.log(piece.name + ', edge ' + edge + ', below state: ' + state[piece.location[edge][0]][piece.location[edge][1] + 1]);
+					console.log(piece.name + ', edge ' + edge + ', below state: ' + state[piece.location[edge][0]][piece.location[edge][1] + 1]);
 				}
 				
 				//CHECK STATE - pixel below the location the pixel was rendered at
@@ -659,9 +731,6 @@
 				
 			});
 			
-			//LOG CAN FALL FLAG
-			//console.log('canFall: ' + canFall);
-
 			//CHECK IF PIECE CAN FALL
 			if(canFall){
 				//UPDATE LOCATIONS
@@ -690,7 +759,7 @@
 		//SET SPAWN PIECES
 		//****************************IN TESTING
 		//let spawnPieces = ['cube','el','jay','tie','long','ess','bed'];
-		let spawnPieces = ['el'];
+		let spawnPieces = ['jay'];
 		//CREATE NEW PIECE
 		let newPiece = new Piece(spawnPieces[Math.floor(Math.random() * spawnPieces.length)], x, y)
 		//IF NEW SPAWNED PIECE HAS ANY PIXEL THAT ALREADY EXISTS IN PIECES, GAME OVER
