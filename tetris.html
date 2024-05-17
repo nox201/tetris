@@ -133,6 +133,11 @@
 	//refactor the switch cases, I think they can be stored as arrays instead?
 	//replace rotate as the E key to spacebar - issue is i think spacebar will activate the last focused element, which is the start game button - causing the game to restart every time you try and rotate a piece
 	
+	//-- Make the rows only drop if they are above the completed rows index
+	//-- update the state to match the new positions 
+	//-- also seem to have a bug where if a piece rotates as it hits the floor it breaks and just drops forever
+	
+	
 	
 	//SET UP SCREEN, CONVIENCE VARIABLES
 	let screen = document.getElementById('screen').getContext('2d');
@@ -160,11 +165,6 @@
 	
 	//CREATE STATE
 	let state = create2dArray(width, height);
-	//SET DIRECTION CONSTANTS
-	const UP = 0;
-	const RIGHT = 1;
-	const DOWN = 2;
-	const LEFT = 3;
 	
 	//ADD KEY EVENT LISTENERS
 	document.addEventListener("keydown", changeDirection);
@@ -348,6 +348,12 @@
 				//   [3]
 				this.colour = '#09ed0d';
 				this.location = [[x,y],[x+1,y],[x+2,y],[x+1,y+1]];
+				this.rotationMatrix = [	
+					[[+1,-1],[0,0],[-1,+1],[-1,-1]],
+					[[+1,+1],[0,0],[-1,-1],[+1,-1]],
+					[[-1,+1],[0,0],[+1,-1],[+1,+1]],
+					[[-1,-1],[0,0],[+1,+1],[-1,+1]]
+				]
 			break;
 			case 'long':
 				//[0]
@@ -356,18 +362,36 @@
 				//[3]
 				this.colour = '#02f2e6';
 				this.location = [[x,y],[x,y+1],[x,y+2],[x,y+3]];
+				this.rotationMatrix = [	
+					[[+1,+1],[0,0],[-1,-1],[-2,-2]],
+					[[-1,+1],[0,0],[+1,-1],[+2,-2]],
+					[[-1,-1],[0,0],[+1,+1],[+2,+2]],
+					[[+1,-1],[0,0],[-1,+1],[-2,+2]]
+				]
 			break;
 			case 'ess':
 				//   [1][0]
 				//[3][2]
 				this.colour = '#023af2';
 				this.location = [[x,y],[x-1,y],[x-1,y+1],[x-2,y+1]];
+				this.rotationMatrix = [	
+					[[-1,+1],[0,0],[-1,-1],[0,-2]],
+					[[-1,-1],[0,0],[+1,-1],[+2,0]],
+					[[+1,-1],[0,0],[+1,+1],[0,+2]],
+					[[+1,+1],[0,0],[-1,+1],[-2,0]]
+				]
 			break;
 			case 'bed':
 				//[0][1]
 				//   [2][3]
 				this.colour = '#cf05f2';
 				this.location = [[x,y],[x+1,y],[x+1,y+1],[x+2,y+1]];
+				this.rotationMatrix = [	
+					[[+1,-1],[0,0],[-1,-1],[-2,0]],
+					[[+1,+1],[0,0],[+1,-1],[0,-2]],
+					[[-1,+1],[0,0],[+1,+1],[+2,0]],
+					[[-1,-1],[0,0],[-1,+1],[0,+2]]
+				]
 			break;
 			default:
 				//ERROR
@@ -426,6 +450,7 @@
 				case 1:
 					switch(this.name){
 						case 'cube':
+						case 'tie':
 							this.fallingEdges = [2,3]
 						break;
 						case 'el':
@@ -433,6 +458,15 @@
 						break;
 						case 'jay':
 							this.fallingEdges = [0,1,2];
+						break;
+						case 'long':
+							this.fallingEdges = [0,1,2,3];
+						break;
+						case 'ess':
+							this.fallingEdges = [0,2];
+						break;
+						case 'bed':
+							this.fallingEdges = [1,3];
 						break;
 					}
 				break;
@@ -444,6 +478,16 @@
 						case 'el':
 						case 'jay':
 							this.fallingEdges = [0,3];
+						break;
+						case 'tie':
+							this.fallingEdges = [0,1,2];
+						break;
+						case 'long':
+							this.fallingEdges = [0];
+						break;
+						case 'ess':
+						case 'bed':
+							this.fallingEdges = [0,1,3];
 						break;
 					}
 				break;
@@ -457,6 +501,18 @@
 						break;
 						case 'jay':
 							this.fallingEdges = [0,1,3];
+						break;
+						case 'tie':
+							this.fallingEdges = [0,3];
+						break;
+						case 'long':
+							this.fallingEdges = [0,1,2,3];
+						break;
+						case 'ess':
+							this.fallingEdges = [1,3];
+						break;
+						case 'bed':
+							this.fallingEdges = [0,2];
 						break;
 					}
 				break;
@@ -498,11 +554,20 @@
 						case 'jay':
 							this.leftEdges = [2,3];
 						break;
+						case 'ess':
+						case 'tie':
+						case 'bed':
+							this.leftEdges = [0,2,3];
+						break;
+						case 'long':
+							this.leftEdges = [3];
+						break;
 					}
 				break;
 				case 2:
 					switch(this.name){
 						case 'cube':
+						case 'ess':
 							this.leftEdges = [0,2];
 						break;
 						case 'el':
@@ -510,6 +575,15 @@
 						break;
 						case 'jay':
 							this.leftEdges = [0,1,2];
+						break;
+						case 'tie':
+							this.leftEdges = [2,3];
+						break;
+						case 'long':
+							this.leftEdges = [0,1,2,3];
+						break;
+						case 'bed':
+							this.leftEdges = [1,3];
 						break;
 					}
 				break;
@@ -521,6 +595,16 @@
 						case 'el':
 						case 'jay':
 							this.leftEdges = [0,3];
+						break;
+						case 'tie':
+							this.leftEdges = [0,1,2];
+						break;
+						case 'long':
+							this.leftEdges = [0];
+						break;
+						case 'ess':
+						case 'bed':
+							this.leftEdges = [0,1,3];
 						break;
 					}
 				break;
@@ -564,11 +648,22 @@
 						case 'jay':
 							this.rightEdges = [0,3];
 						break;
+						case 'tie':
+							this.rightEdges = [0,1,2];
+						break;
+						case 'long':
+							this.rightEdges = [0];
+						break;
+						case 'ess':
+						case 'bed':
+							this.rightEdges = [0,1,3];
+						break;
 					}
 				break;
 				case 2:
 					switch(this.name){
 						case 'cube':
+						case 'ess':
 							this.rightEdges = [1,3];
 						break;
 						case 'el':
@@ -576,6 +671,15 @@
 						break;
 						case 'jay':
 							this.rightEdges = [0,1,3];
+						break;
+						case 'tie':
+							this.rightEdges = [0,3];
+						break;
+						case 'long':
+							this.rightEdges = [0,1,2,3];
+						break;
+						case 'bed':
+							this.rightEdges = [0,2];
 						break;
 					}
 				break;
@@ -587,6 +691,14 @@
 						case 'el':
 						case 'jay':
 							this.rightEdges = [2,3];
+						break;
+						case 'tie':
+						case 'ess':
+						case 'bed':
+							this.rightEdges = [0,2,3];
+						break;
+						case 'long':
+							this.rightEdges = [3];
 						break;
 					}
 				break;
@@ -606,18 +718,21 @@
 		//CLEAR SCREEN
 		screen.clearRect(0, 0, screenWidth, screenHeight);
 		//CLEAR STATE
-		state = create2dArray(width, height);
+		//state = create2dArray(width, height);
 		
 		//CHECK IF GAME IS RUNNING
 		if(gameIsRunning){
 			
-			//CHECK IF ACTIVE PIECE
-			if(!activePiece){
-				spawnPiece();
-			}
-		
 			//RENDER PIECES
 			pieces.forEach((piece) => renderPiece(piece));
+			
+			//CHECK IF ACTIVE PIECE
+			if(!activePiece){
+				//CHECK FOR COMPLETED LINE
+				checkRow();
+				//SPAWN NEW PIECE
+				spawnPiece();
+			}
 			
 			//CHECK FOR GAME OVER
 			if(gameIsOver){
@@ -625,7 +740,6 @@
 				setFrameRate('pause');
 				setFallRate('pause');
 				//DISPLAY GAME OVER
-				//alert('Game Over');
 				document.getElementById('gameOver').style.display = 'block';
 				//SET FLAG
 				gameIsRunning = false;
@@ -685,8 +799,7 @@
 				console.log(piece.name + ' is falling');
 				console.log('location: ');
 				console.log(piece.location);
-				console.log('state: ');
-				console.log(state);
+				console.log('state: ' + state);
 			}
 			
 			//SET FLAG
@@ -757,9 +870,8 @@
 		x = getRandomInt(2,7);
 		y = 0;
 		//SET SPAWN PIECES
-		//****************************IN TESTING
 		//let spawnPieces = ['cube','el','jay','tie','long','ess','bed'];
-		let spawnPieces = ['jay'];
+		let spawnPieces = ['long'];
 		//CREATE NEW PIECE
 		let newPiece = new Piece(spawnPieces[Math.floor(Math.random() * spawnPieces.length)], x, y)
 		//IF NEW SPAWNED PIECE HAS ANY PIXEL THAT ALREADY EXISTS IN PIECES, GAME OVER
@@ -782,6 +894,75 @@
 		//activePiece.rotate();
 		//ADD ACTIVE PIECE
 		pieces.push(activePiece);
+	}
+	
+	//CHECK FOR COMPLETED LINE
+	function checkRow(){
+		//INITALIZE COUNTER - WILL BE USED TO CHECK IF ANY ROW IS FULL
+		counters = [];
+
+		//ITERATE STATE I
+		for(i = 0; i < state.length; i++){
+			//ITERATE STATE Y
+			for(j = 0; j < state[i].length; j++){
+			
+				//INITALIZE COUNTER
+				if(i === 0){
+					counters[j] = 0;
+				}
+
+				//CHECK IF STATE PIXEL IS OCCUPIED
+				if(state[i][j] === true){
+					//INCREMENT COUNTER
+					counters[j]++;
+				}
+			}
+		}
+		
+		//CHECK FOR FULL ROWS
+		for(i = 0; i < counters.length; i++){
+			//CHECK ROW IS FULL
+			if(counters[i] === width){
+			
+				//REMOVE ROW FROM STATE
+				for(stateX = 0; stateX < state.length; stateX++){
+					state[stateX][i] = false;
+				}
+				//REMOVE PIXELS IN COMPLETED ROW
+				pieces.forEach((piece) => {
+
+					//LOOP BACKWARDS TO ACCOUNT FOR MODIFYING ARRAY WHILE ITERATING
+					for(piecePixel = piece.location.length - 1; piecePixel >= 0; piecePixel--){
+						//LOG
+						//console.log('piece location[' + piecePixel + '] is ' + piece.location[piecePixel]);
+						//CHECK IF PIECE PIXEL Y COORD MATCHES ROW TO REMOVE
+						if(piece.location[piecePixel][1] == i){
+							//LOG
+							//console.log('location with piecePixel ' + piecePixel + ' before splice: ' + piece.location);
+							//REMOVE PIXEL FROM PIECE
+							piece.location.splice(piecePixel, 1);
+							//LOG
+							//console.log('location with piecePixel ' + piecePixel + ' after splice: ' + piece.location);
+						}
+					}
+					
+					//MAKE ALL PIECE LOCATIONS DROP BY ONE
+					//--------------------------------------------- this only works if the row is the bottom one
+					piece.location.forEach((pixel) => {
+						pixel[1] = pixel[1] + 1;
+					});
+					
+				});
+				
+				//TO-DO: MAKE ALL STATE DROP BY ONE (as per above, only if the state is above the row thats completed
+				state.forEach((pixel) => {
+					//work out if state pixel is above the completed row, then mark it false, then mark the space below true
+					//will this work for multiple rows? might need a duplicate state array rather than modifying the existing one
+				});
+				
+			}
+		
+		}
 	}
 	
 	//START NEW GAME
