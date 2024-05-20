@@ -137,7 +137,7 @@
 	//-- update the state to match the new positions 
 	//-- also seem to have a bug where if a piece rotates as it hits the floor it breaks and just drops forever
 	
-	
+	let clearTimer = 0;
 	
 	//SET UP SCREEN, CONVIENCE VARIABLES
 	let screen = document.getElementById('screen').getContext('2d');
@@ -860,7 +860,6 @@
 			
 		}
 		
-		
 	}
 
 	//SPAWN PIECE
@@ -891,17 +890,18 @@
 		activePiece.setFallingEdges();
 		activePiece.setLeftEdges();
 		activePiece.setRightEdges();
-		//activePiece.rotate();
 		//ADD ACTIVE PIECE
 		pieces.push(activePiece);
 	}
 	
 	//CHECK FOR COMPLETED LINE
 	function checkRow(){
-		//INITALIZE COUNTER - WILL BE USED TO CHECK IF ANY ROW IS FULL
+		//INITALIZE COUNTER - COUNTS NUMBER OF PIXELS PER ROW
 		counters = [];
+		//INITALIZE COMPLETED ROWS - USED TO DRAW THE CLEARING ANIMATION
+		completedRows = [];
 
-		//ITERATE STATE I
+		//ITERATE STATE X
 		for(i = 0; i < state.length; i++){
 			//ITERATE STATE Y
 			for(j = 0; j < state[i].length; j++){
@@ -918,6 +918,34 @@
 				}
 			}
 		}
+		
+		//--
+		
+		//CHECK FOR FULL ROWS
+		for(i = 0; i < counters.length; i++){
+			//CHECK ROW IS FULL
+			if(counters[i] === width){
+				//STORE COMPLETED ROW INDEXES
+				completedRows.push(i);
+			}
+		}
+		//IF ANY COMPLETED ROWS, ANIMATE
+		if(completedRows.length > 0){
+			//PAUSE
+			setFallRate('pause');
+			setFrameRate('pause');
+			
+			//DO CLEARING ANIMATION
+			clearTimer = 0;
+			clearLine = setInterval(clearLineAnimation, 10, completedRows[0], completedRows.length);
+			
+			//RESTART LOOPS
+			setFallRate('slow');
+			setTimeout(function(){setFrameRate('fast')}, 650);
+			setTimeout(function(){clearInterval(clearLine);}, 650);
+		}
+		
+		//--
 		
 		//CHECK FOR FULL ROWS
 		for(i = 0; i < counters.length; i++){
@@ -947,22 +975,62 @@
 					}
 					
 					//MAKE ALL PIECE LOCATIONS DROP BY ONE
-					//--------------------------------------------- this only works if the row is the bottom one
 					piece.location.forEach((pixel) => {
-						pixel[1] = pixel[1] + 1;
+						//CHECK PIXEL IS ABOVE THE COMPLETED LINE
+						if(pixel[1] <= i){
+							//INCREMENT PIXEL X LOCATION BY 1
+							pixel[1] = pixel[1] + 1;
+						}
 					});
 					
 				});
 				
-				//TO-DO: MAKE ALL STATE DROP BY ONE (as per above, only if the state is above the row thats completed
-				state.forEach((pixel) => {
-					//work out if state pixel is above the completed row, then mark it false, then mark the space below true
-					//will this work for multiple rows? might need a duplicate state array rather than modifying the existing one
-				});
+				//MAKE STATE DROP BY ONE
+				for(stateX = 0; stateX < state.length; stateX++){
+					//DONT ITERATE TOP ROW, NO NEED AND PREVENTS ERRORS
+					for(stateY = 1; stateY < state[stateX].length; stateY++){
+						if(stateX === i){
+							//REMOVE ROW
+							state[stateX][stateY] = false;
+						}
+						if(stateY < i){
+							//DROP ROWS ABOVE
+							state[stateX][stateY] = state[stateX][stateY - 1];
+						}
+					}
+				}
 				
 			}
-		
 		}
+		
+	}
+	
+	//CLEAR LINE ANIMATION
+	function clearLineAnimation(y, numberOfLines){
+		//INCREMENT CLEAR TIMER
+		clearTimer++;
+		//DO CLEARING ANIMATION, DIFFERENT COLOUR BASED ON NUMBER OF LINES CLEARED
+		switch(numberOfLines){
+			case 1:
+				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',' + clearTimer * 3 + ',255)';
+				screen.strokeStyle = 'rgb(0,0,255)';
+			break;
+			case 2:
+				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',255,' + clearTimer * 3 + ')';
+				screen.strokeStyle = 'rgb(0,255,0)';
+			break;
+			case 3:
+				screen.fillStyle = 'rgb(255,' + clearTimer * 3 + ',' + clearTimer * 3 + ')';
+				screen.strokeStyle = 'rgb(255,0,0)';
+			break;
+			case 4:
+				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',' + clearTimer * 3 + ',' + clearTimer * 3 + ')';
+				screen.strokeStyle = 'rgb(255,255,255)';
+			break;
+		}
+		//MAKE CLEARING LINE
+		screen.fillRect((screenWidth / 2 - (clearTimer * 5)), y * pixelSize, clearTimer * 10, numberOfLines * pixelSize);
+		screen.strokeRect(0, y * pixelSize, screenWidth, numberOfLines * pixelSize);
 	}
 	
 	//START NEW GAME
@@ -1055,8 +1123,5 @@
 			break;
 		}
 	}
-	
-	//START
-	//setFrameRate('slow');
 	
 </script>
