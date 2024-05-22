@@ -3,13 +3,13 @@
 	<style>
 		body{
 			min-height: 100%;
-			min-width: 100%;
+			/*min-width: 100%;*/
 			background: #B8E1FC;
 			background: radial-gradient(circle farthest-corner at center center, #B8E1FC 0%, #231421 100%);
-		}
-		.title{
 			font-family: "Tahoma";
 			font-weight: 900;
+		}
+		.title{
 			font-size: 80pt;
 			letter-spacing: 3px;
 			color: #000;
@@ -20,10 +20,10 @@
 			font-weight: 900;
 			font-size: 40px;
 			background-color: #aeb8fe;
-			border: 2px solid black;
+			border: 2px solid #000000;
+			border-radius: 5px;
 			padding: 16px;
 			margin-bottom: 40px;
-			border-radius: 5px;
 			font-variant: small-caps;
 		}
 		.startGame:hover{
@@ -32,6 +32,17 @@
 			border: 2px solid #aeb8fe;
 			cursor: pointer;
 			transition: 0.5s;
+		}
+		#data{
+			background-color: #000000;
+			border: 2px solid #aeb8fe;
+			border-radius: 5px;
+			padding: 10px;
+			margin-top: 35%;
+			margin-left: 20%;
+			margin-right: 20%;
+			color: #FFFFFF;
+			text-align: left;
 		}
 		#leftContainer{
 			min-width: 33%;
@@ -47,13 +58,14 @@
 		#rightContainer{
 			min-width: 33%;
 			text-align: center;
+			vertical-align: top;
 			display: inline-block;
 		}
 		#screen{
 			height: 800px;
 			width: 400px;
 			border: 2px solid black;
-			background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+			background: linear-gradient(-45deg, #ee7752, #57162f, #23a6d5, #23d5ab);
 			background-size: 400% 400%;
 			animation: gradient 15s ease infinite;
 			z-index: 1000;
@@ -90,17 +102,17 @@
 </head>
 <body>
 	<div id="background">
-		<div>
+		<!--<div>
 			<button onclick="draw()">Advance Frame</button>
 			<button onclick="fall()">Fall</button>
 			<button onclick="setFrameRate('slow')">Start (Slow)</button>
 			<button onclick="setFrameRate('fast')">Start (Fast)</button>
-			<button onclick="setFallRate('slow')">Fall (Slow)</button>
-			<button onclick="setFallRate('fast')">Fall (Fast)</button>
+			<button onclick="setFallRate(1)">Fall (Slow)</button>
+			<button onclick="setFallRate(8)">Fall (Fast)</button>
 			<button onclick="setFrameRate('pause')">Stop</button>
 			<button onclick="setFallRate('pause')">Stop Falling</button>
 			<button onclick="spawnPiece()">Spawn Piece</button>
-		</div>
+		</div>-->
 		<div id="leftContainer">
 			<h1 class="title">TETRIS</h1>
 			<button class="startGame" onclick="startNewGame()">Start</button>
@@ -109,19 +121,22 @@
 			<canvas id="screen" width="400px" height="800px"></canvas>
 		</div>
 		<div id="rightContainer">
-			<div><p>score board to go here</p></div>
+			<div id="data">
+				<p>Score: <span id="score"></span></p>
+				<p>Level: <span id="level"></span></p>
+				<p>Total Rows: <span id="rows"></span></p>
+			</div>
 		</div>
 		<div id="gameOver">
 			<h2>Game Over!</h2>
-			<p>You scored <span>1234</span> points.</p>
-			<p>Playtime: <span>3 minutes 21 seconds</span></p>
+			<p>You scored <span id="gameOverScore">0</span> points.</p>
+			<p>You reached level <span id="gameOverLevel">0</span> and cleared a total of <span id="gameOverRows">0</span> rows.</p>
 			<button class="startGame" onclick="startNewGame()">Play Again?</button>
 		</div>
-		<!--<div>
-			<button onclick="draw()">Advance Frame</button>
-			<button onclick="setFrameRate('slow')">Start (Slow)</button>
-			<button onclick="setFrameRate('fast')">Start (Fast)</button>
-			<button onclick="setFrameRate('pause')">Stop</button>
+		<!--<div id="paused">
+			<h2>Paused</h2>
+			<p id="fact"></p>
+			<button class="startGame" onclick="unpause()">Resume</button>
 		</div>-->
 	</div>
 </body>
@@ -133,11 +148,13 @@
 	//refactor the switch cases, I think they can be stored as arrays instead?
 	//replace rotate as the E key to spacebar - issue is i think spacebar will activate the last focused element, which is the start game button - causing the game to restart every time you try and rotate a piece
 	
-	//-- Make the rows only drop if they are above the completed rows index
-	//-- update the state to match the new positions 
 	//-- also seem to have a bug where if a piece rotates as it hits the floor it breaks and just drops forever
+	//-- bug where the pieces keep falling during the row clear animation?
 	
-	let clearTimer = 0;
+	//-- implement a pause button, and have the pause screen show a random tetris fact each time it appears
+	
+	//SCORING IS A SIMPLIFIED TAKE ON THE ORIGINAL NES VERSION BY https://tetris.wiki/Scoring
+	
 	
 	//SET UP SCREEN, CONVIENCE VARIABLES
 	let screen = document.getElementById('screen').getContext('2d');
@@ -147,13 +164,18 @@
 	let width = screenWidth /  pixelSize;
 	let height = screenHeight /  pixelSize;
 	//GAME STATE VARS
-	//let gameIsRunning = false;
 	let gameIsRunning = true;
 	let gameIsOver = false;	
 	let activePiece = false;
 	let canMove = false;
 	let pieces = [];
 	let pixelId = 0;
+	let completedRowValues = [40, 100, 300, 1200];
+	let score = 0;
+	let level = 0;
+	let totalRows = 0;
+	let timeStarted = 0;
+	let clearTimer = 0;
 
 	//DEBUG OPTIONS
 	let showFallingData = false;
@@ -162,6 +184,7 @@
 	let showRightEdges = false;
 	let showRotationData = false;
 	let showPixelLocations = false;
+	let showScoreData = false;
 	
 	//CREATE STATE
 	let state = create2dArray(width, height);
@@ -279,8 +302,6 @@
 							}
 						}
 					}
-					//if its on the edge can i move the piece to the side instead of blocking rotation entirely?
-					
 					//INCREMENT PIXEL ID
 					pixelId++;
 				});
@@ -717,8 +738,6 @@
 		
 		//CLEAR SCREEN
 		screen.clearRect(0, 0, screenWidth, screenHeight);
-		//CLEAR STATE
-		//state = create2dArray(width, height);
 		
 		//CHECK IF GAME IS RUNNING
 		if(gameIsRunning){
@@ -743,9 +762,6 @@
 				document.getElementById('gameOver').style.display = 'block';
 				//SET FLAG
 				gameIsRunning = false;
-			}else{
-				//FALL PIECES
-				//pieces.forEach((piece) => fall(piece));
 			}
 		
 		}else{
@@ -784,7 +800,7 @@
 		}
 		
 		if(showPixelLocations){
-			//console.log(piece.location);
+			console.log(piece.location);
 		}
 		
 	}
@@ -809,7 +825,7 @@
 			//tests each pieces 'falling edge' (the most downward pixels of each piece in each rotation) for anything below it
 			piece.fallingEdges.forEach((edge) => {
 				
-				//debug
+				//LOG
 				if(showPixelLocations){
 					console.log('x: ' + piece.location[edge][0]);
 					console.log('y: ' + piece.location[edge][1]);
@@ -831,15 +847,11 @@
 				if(state[piece.location[edge][0]][piece.location[edge][1] + 1] === true){
 					//SET FLAGS
 					canFall = false;
-					//LOG
-					//console.log('pixel below occupied');
 				}
 				//CHECK FLOOR
 				if(piece.location[edge][1] === height - 1){
 					//SET FLAG
 					canFall = false;
-					//LOG
-					//console.log('pixel is on the floor');
 				}
 				
 			});
@@ -869,8 +881,7 @@
 		x = getRandomInt(2,7);
 		y = 0;
 		//SET SPAWN PIECES
-		//let spawnPieces = ['cube','el','jay','tie','long','ess','bed'];
-		let spawnPieces = ['long'];
+		let spawnPieces = ['cube','el','jay','tie','long','ess','bed'];
 		//CREATE NEW PIECE
 		let newPiece = new Piece(spawnPieces[Math.floor(Math.random() * spawnPieces.length)], x, y)
 		//IF NEW SPAWNED PIECE HAS ANY PIXEL THAT ALREADY EXISTS IN PIECES, GAME OVER
@@ -929,20 +940,27 @@
 				completedRows.push(i);
 			}
 		}
-		//IF ANY COMPLETED ROWS, ANIMATE
+		
+		//IF ANY COMPLETED ROWS
 		if(completedRows.length > 0){
+			
+			//UPDATE SCORE
+			updateScore(completedRows.length);
+			//UPDATE LEVEL
+			updateLevel(completedRows.length);
+			
 			//PAUSE
 			setFallRate('pause');
 			setFrameRate('pause');
-			
 			//DO CLEARING ANIMATION
 			clearTimer = 0;
 			clearLine = setInterval(clearLineAnimation, 10, completedRows[0], completedRows.length);
-			
 			//RESTART LOOPS
-			setFallRate('slow');
+			setTimeout(function(){setFallRate(level)}, 650);
 			setTimeout(function(){setFrameRate('fast')}, 650);
+			//STOP CLEARING ANIMATION
 			setTimeout(function(){clearInterval(clearLine);}, 650);
+			
 		}
 		
 		//--
@@ -962,15 +980,13 @@
 					//LOOP BACKWARDS TO ACCOUNT FOR MODIFYING ARRAY WHILE ITERATING
 					for(piecePixel = piece.location.length - 1; piecePixel >= 0; piecePixel--){
 						//LOG
-						//console.log('piece location[' + piecePixel + '] is ' + piece.location[piecePixel]);
+						if(showPixelLocations){
+							console.log('piece location[' + piecePixel + '] is ' + piece.location[piecePixel]);
+						}
 						//CHECK IF PIECE PIXEL Y COORD MATCHES ROW TO REMOVE
 						if(piece.location[piecePixel][1] == i){
-							//LOG
-							//console.log('location with piecePixel ' + piecePixel + ' before splice: ' + piece.location);
 							//REMOVE PIXEL FROM PIECE
 							piece.location.splice(piecePixel, 1);
-							//LOG
-							//console.log('location with piecePixel ' + piecePixel + ' after splice: ' + piece.location);
 						}
 					}
 					
@@ -1005,6 +1021,34 @@
 		
 	}
 	
+	//UPDATE SCORE
+	function updateScore(numRows){
+		//UPDATE SCORE
+		score = (score + (completedRowValues[numRows - 1] * (level + 1)));
+		//LOG
+		if(showScoreData){
+			console.log('score: ' + score);
+			console.log('completedRowValues: ' + completedRowValues[numRows - 1]);
+			console.log('level: ' + level);
+		}
+		//UPDATE DATA
+		document.getElementById('score').innerHTML = score;
+		document.getElementById('gameOverScore').innerHTML = score;
+	}
+	
+	//UPDATE LEVEL
+	function updateLevel(numRows){
+		//INCRMENT TOTAL ROWS
+		totalRows += numRows;
+		//INCREMENT LEVEL
+		level = Math.floor(totalRows / 10);
+		//INCREASE FALL RATE
+		setFallRate(level);
+		//UPDATE DATA 
+		document.getElementById('level').innerHTML = level;
+		document.getElementById('rows').innerHTML = totalRows;
+	}
+	
 	//CLEAR LINE ANIMATION
 	function clearLineAnimation(y, numberOfLines){
 		//INCREMENT CLEAR TIMER
@@ -1012,16 +1056,16 @@
 		//DO CLEARING ANIMATION, DIFFERENT COLOUR BASED ON NUMBER OF LINES CLEARED
 		switch(numberOfLines){
 			case 1:
-				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',' + clearTimer * 3 + ',255)';
+				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',' + clearTimer * 3 + ',200)';
 				screen.strokeStyle = 'rgb(0,0,255)';
 			break;
 			case 2:
-				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',255,' + clearTimer * 3 + ')';
+				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',200,' + clearTimer * 3 + ')';
 				screen.strokeStyle = 'rgb(0,255,0)';
 			break;
 			case 3:
 				screen.fillStyle = 'rgb(255,' + clearTimer * 3 + ',' + clearTimer * 3 + ')';
-				screen.strokeStyle = 'rgb(255,0,0)';
+				screen.strokeStyle = 'rgb(200,0,0)';
 			break;
 			case 4:
 				screen.fillStyle = 'rgb(' + clearTimer * 3 + ',' + clearTimer * 3 + ',' + clearTimer * 3 + ')';
@@ -1035,8 +1079,6 @@
 	
 	//START NEW GAME
 	function startNewGame(){
-		//HIDE GAME OVER DIV
-		document.getElementById('gameOver').style.display = 'none';
 		//EMPTY STATE
 		state = create2dArray(width, height);
 		//EMPTY PIECES
@@ -1046,11 +1088,22 @@
 		gameIsOver = false;		
 		activePiece = false;
 		canMove = false;
+		score = 0;
+		totalRows = 0;
+		level = 0;
+		timeStarted = 0;
+		//HIDE GAME OVER DIV, RESET DATA
+		document.getElementById('gameOver').style.display = 'none';
+		document.getElementById('score').innerHTML = score;
+		document.getElementById('level').innerHTML = level;
+		document.getElementById('rows').innerHTML = totalRows;
+		//document.getElementById('timePlayed').innerHTML = timeStarted;
+		//SPAWN THE FIRST PIECE
 		spawnPiece();
 		//SET FRAME RATE
 		setFrameRate('fast');
 		//SET FALL RATE
-		setFallRate('slow');
+		setFallRate(level);
 	}
 	
 	//GAME OVER
@@ -1099,28 +1152,28 @@
 	}
 	
 	//SET RATE AT WHICH PIECES SHOULD FALL
-	function setFallRate(fallRate){
+	function setFallRate(level){
 		//STOP CURRENT REPEATER
 		if(typeof fallRepeater !== 'undefined'){
 			clearInterval(fallRepeater);
 		}
 		//RUN THE CANVAS
-		switch(fallRate){
+		switch(level){
 			case 'pause':
 				clearInterval(fallRepeater);
 			break;
-			case 'slow':
-				fallRepeater = setInterval(fallActivePiece, 300);
+			//START OFF WITH FALL RATE OF 0.3 SECONDS, GETTING 0.02 SECONDS QUICKER EVERY LEVEL UP
+			default:
+				if(level < 11){
+					//UNTIL A MAXIMUM OF LEVEL 10 (BLOCKS THEN FALL EVERY 10TH OF A SECOND, AND PROBABLY GET PERFORMANCE ISSUES TOO)
+					if(showScoreData){
+						console.log('repeater is now at ' + (300 - (level * 20)));
+					}
+					fallRepeater = setInterval(fallActivePiece, (300 - (level * 20)));
+				}
+					
 			break;
-			case 'medium':
-				fallRepeater = setInterval(fallActivePiece, 250);
-			break;
-			case 'fast':
-				fallRepeater = setInterval(fallActivePiece, 200);
-			break;
-			case 'destroy':
-				fallRepeater = setInterval(fallActivePiece, 100);
-			break;
+			
 		}
 	}
 	
