@@ -15,7 +15,11 @@
 			color: #000;
 			text-shadow: -1px 1px 0px #aeb8fe, 1px 1px 0px #aeb8fe, 1px -1px 0px #aeb8fe, -1px -1px 0px #aeb8fe;
 		}
-		.startGame{
+		.tagline{
+			margin-top: -60px;
+			font-weight: normal;
+		}
+		.button{
 			font-family: "Tahoma";
 			font-weight: 900;
 			font-size: 40px;
@@ -26,14 +30,21 @@
 			margin-bottom: 40px;
 			font-variant: small-caps;
 		}
-		.startGame:hover{
+		.button:hover{
 			color: #aeb8fe;
 			background-color: #000000;
 			border: 2px solid #aeb8fe;
 			cursor: pointer;
 			transition: 0.5s;
 		}
-		#data{
+		.pause{
+			margin-top: 20px;
+		}
+		.small{
+			font-size: 30px;
+			padding: 8px;
+		}
+		.data{
 			background-color: #000000;
 			border: 2px solid #aeb8fe;
 			border-radius: 5px;
@@ -43,6 +54,10 @@
 			margin-right: 20%;
 			color: #FFFFFF;
 			text-align: left;
+		}
+		.controls{
+			text-align: center;
+			margin-top: 15%;
 		}
 		#leftContainer{
 			min-width: 33%;
@@ -54,6 +69,7 @@
 			min-width: 33%;
 			text-align: center;
 			display: inline-block;
+			margin-top: 20px;
 		}
 		#rightContainer{
 			min-width: 33%;
@@ -75,7 +91,7 @@
 			50% {background-position: 100% 50%;}
 			100% {background-position: 0% 50%;}
 		}
-		#gameOver{
+		.popup{
 			display: none;
 			position: absolute;
 			width: 31%;
@@ -86,58 +102,66 @@
 			border: 4px solid #aeb8fe;
 			border-radius: 30px;
 		}
-		#gameOver h2{
+		.popup h2{
 			font-family: "Tahoma";
 			font-weight: 900;
 			font-size: 50px;
 			color: #FFFFFF;
 			font-variant: small-caps;
 		}
-		#gameOver p{
+		.popup p{
 			font-family: "Tahoma";
-			font-weight: 900;
 			color: #FFFFFF;
+		}
+		.didYouKnow{
+			text-decoration: underline;
+		}
+		.fact{
+			margin-right: 5px;
+			margin-left: 5px;
+			font-weight: normal;
 		}
 	</style>
 </head>
 <body>
 	<div id="background">
-		<!--<div>
-			<button onclick="draw()">Advance Frame</button>
-			<button onclick="fall()">Fall</button>
-			<button onclick="setFrameRate('slow')">Start (Slow)</button>
-			<button onclick="setFrameRate('fast')">Start (Fast)</button>
-			<button onclick="setFallRate(1)">Fall (Slow)</button>
-			<button onclick="setFallRate(8)">Fall (Fast)</button>
-			<button onclick="setFrameRate('pause')">Stop</button>
-			<button onclick="setFallRate('pause')">Stop Falling</button>
-			<button onclick="spawnPiece()">Spawn Piece</button>
-		</div>-->
 		<div id="leftContainer">
 			<h1 class="title">TETRIS</h1>
-			<button class="startGame" onclick="startNewGame()">Start</button>
+			<p class="tagline">An illustrative example by Lawrence Wood, 2024</p>
+			<button class="button" onclick="startNewGame()">Start</button>
+			<div class="data controls">
+				<h2>Controls</h2>
+				<p>Rotate: E</p>
+				<p>Move Left: A</p>
+				<p>Move Right : D</p>
+				<p>Move Down: S</p>
+			</div>
 		</div>
 		<div id="screenContainer">
 			<canvas id="screen" width="400px" height="800px"></canvas>
 		</div>
 		<div id="rightContainer">
-			<div id="data">
+			<div class="data">
 				<p>Score: <span id="score"></span></p>
 				<p>Level: <span id="level"></span></p>
 				<p>Total Rows: <span id="rows"></span></p>
 			</div>
+			<button class="button small pause" onclick="pause()">Pause</button>
 		</div>
-		<div id="gameOver">
+		<div id="gameOver" class="popup">
 			<h2>Game Over!</h2>
 			<p>You scored <span id="gameOverScore">0</span> points.</p>
 			<p>You reached level <span id="gameOverLevel">0</span> and cleared a total of <span id="gameOverRows">0</span> rows.</p>
-			<button class="startGame" onclick="startNewGame()">Play Again?</button>
+			<p class="didYouKnow">Did you know?</p>
+			<p id="gameOverFact" class="fact"></p>
+			<button class="button" onclick="startNewGame()">Play Again?</button>
 		</div>
-		<!--<div id="paused">
+		<div id="pause" class="popup">
 			<h2>Paused</h2>
-			<p id="fact"></p>
-			<button class="startGame" onclick="unpause()">Resume</button>
-		</div>-->
+			<p class="didYouKnow">Did you know?</p>
+			<p id="fact" class="fact"></p>
+			<button class="button small" onclick="unpause()">Resume</button>
+		</div>
 	</div>
 </body>
 
@@ -146,15 +170,7 @@
 	//TO-DO:
 	//fix the uncaught type errors that appear when pushing a piece against the screen edge (copy undefined check in rotation by just checking canMove?
 	//refactor the switch cases, I think they can be stored as arrays instead?
-	//replace rotate as the E key to spacebar - issue is i think spacebar will activate the last focused element, which is the start game button - causing the game to restart every time you try and rotate a piece
-	
-	//-- also seem to have a bug where if a piece rotates as it hits the floor it breaks and just drops forever
-	//-- bug where the pieces keep falling during the row clear animation?
-	
-	//-- implement a pause button, and have the pause screen show a random tetris fact each time it appears
-	
-	//SCORING IS A SIMPLIFIED TAKE ON THE ORIGINAL NES VERSION BY https://tetris.wiki/Scoring
-	
+	//fix the bug where if a piece rotates as it hits the floor it breaks and just drops forever
 	
 	//SET UP SCREEN, CONVIENCE VARIABLES
 	let screen = document.getElementById('screen').getContext('2d');
@@ -176,6 +192,19 @@
 	let totalRows = 0;
 	let timeStarted = 0;
 	let clearTimer = 0;
+	
+	//TETRIS FACTS, SHOWN ON THE PAUSE SCREEN
+	let facts = [
+		'Tetris was designed by Alexey Pajitnov in 1985. He was inspired by the fit-the-block puzzles he played as a child.',
+		'The name tetris was created as a portmanteau of the greek word \'tetra\', referring to the 4 squares contained in each piece, and the word tennis.',
+		'Due to tetris\' release during the cold war, the licensing rights for the game from its birthplace in Russia to the west was filled with controversy.',
+		'Tetris is the world\'s third best selling video game of all time, eclipsed only by Minecraft and GTA 5.',
+		'Dedicated to VH and BM <3',
+		'While Tetris does not contain a typical end state, years of dedicated speedrunners have found that the NES version can be forced to crash by completing a single-line on the transition to level 157. The original programmers never intended the game to be playable after level 29.',
+		'The Tetris theme song is an instrumental arrangement of a Russian folk tune called "Korobeiniki". The song is so famous that it is now a registered sound mark in the U.S. and other countries.',
+		'The falling pieces in tetris are called \'Tetrominos\'. Their standardized names are L, J, O, I, S, Z and T. This program does not use them however, as I didn\'t know they existed and opted for my own, less concise naming convention: cube, el, jay, tie, long, ess, and bed.',
+		'This version uses a simplified version of the NES scoring system. A single line clear is worth 40 points, a double 100, a triple 300 and a tetris (4 lines) 1200. This scored is then multiplied by the level + 1. The level increases after every 10 cleared lines, and the rate the pieces fall at is increased by 0.2 seconds.'
+	];
 
 	//DEBUG OPTIONS
 	let showFallingData = false;
@@ -758,6 +787,8 @@
 				//STOP DRAW LOOP
 				setFrameRate('pause');
 				setFallRate('pause');
+				//SET GAME OVER FACT
+				document.getElementById('gameOverFact').innerHTML = facts[Math.floor(Math.random() * facts.length)];
 				//DISPLAY GAME OVER
 				document.getElementById('gameOver').style.display = 'block';
 				//SET FLAG
@@ -1047,6 +1078,8 @@
 		//UPDATE DATA 
 		document.getElementById('level').innerHTML = level;
 		document.getElementById('rows').innerHTML = totalRows;
+		document.getElementById('gameOverLevel').innerHTML = level;
+		document.getElementById('gameOverRows').innerHTML = totalRows;
 	}
 	
 	//CLEAR LINE ANIMATION
@@ -1076,6 +1109,10 @@
 		screen.fillRect((screenWidth / 2 - (clearTimer * 5)), y * pixelSize, clearTimer * 10, numberOfLines * pixelSize);
 		screen.strokeRect(0, y * pixelSize, screenWidth, numberOfLines * pixelSize);
 	}
+	
+	//--------------------
+	//GAME STATE FUNCTIONS
+	//--------------------
 	
 	//START NEW GAME
 	function startNewGame(){
@@ -1111,6 +1148,32 @@
 		//SET FLAG
 		gameIsOver = true;
 	}
+	
+	//PAUSE
+	function pause(){
+		//SET FRAME RATE
+		setFrameRate('pause');
+		//SET FALL RATE
+		setFallRate('pause');
+		//SET RANDOM FACT
+		document.getElementById('fact').innerHTML = facts[Math.floor(Math.random() * facts.length)];
+		//SHOW PAUSE DIV
+		document.getElementById('pause').style.display = 'block';
+	}
+	
+	//UNPAUSE
+	function unpause(){
+		//SET FRAME RATE
+		setFrameRate('fast');
+		//SET FALL RATE
+		setFallRate(level);
+		//HIDE PAUSE DIV
+		document.getElementById('pause').style.display = 'none';
+	}
+	
+	//-----------------
+	//UTILITY FUNCTIONS
+	//-----------------
 	
 	//UTILITY 2D ARRAY FUNCTION
 	function create2dArray(rows, cols){
