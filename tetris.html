@@ -167,11 +167,6 @@
 
 <script>
 	
-	//TO-DO:
-	//fix the uncaught type errors that appear when pushing a piece against the screen edge (copy undefined check in rotation by just checking canMove?
-	//refactor the switch cases, I think they can be stored as arrays instead?
-	//fix the bug where if a piece rotates as it hits the floor it breaks and just drops forever
-	
 	//SET UP SCREEN, CONVIENCE VARIABLES
 	let screen = document.getElementById('screen').getContext('2d');
 	let pixelSize = 40;
@@ -193,7 +188,7 @@
 	let timeStarted = 0;
 	let clearTimer = 0;
 	
-	//TETRIS FACTS, SHOWN ON THE PAUSE SCREEN
+	//TETRIS FACTS, SHOWN ON THE PAUSE AND GAME OVER SCREEN
 	let facts = [
 		'Tetris was designed by Alexey Pajitnov in 1985. He was inspired by the fit-the-block puzzles he played as a child.',
 		'The name tetris was created as a portmanteau of the greek word \'tetra\', referring to the 4 squares contained in each piece, and the word tennis.',
@@ -246,7 +241,7 @@
 					}
 					
 					//CHECK STATE - pixel to the right of the location the pixel was rendered at
-					if(state[activePiece.location[edge][0] + 1][activePiece.location[edge][1]] === true){
+					if(activePiece.location[edge][0] === 9 || state[activePiece.location[edge][0] + 1][activePiece.location[edge][1]] === true){
 						//SET FLAGS
 						canMove = false;
 						//LOG
@@ -285,7 +280,7 @@
 					}
 					
 					//CHECK STATE - pixel to the left of the location the pixel was rendered at
-					if(state[activePiece.location[edge][0] -  1][activePiece.location[edge][1]] === true){
+					if(activePiece.location[edge][0] === 0 || state[activePiece.location[edge][0] -  1][activePiece.location[edge][1]] === true){
 						//SET FLAGS
 						canMove = false;
 						//LOG
@@ -319,6 +314,10 @@
 						//CANT ROTATE, ON RIGHT EDGE
 						canMove = false;
 					}
+					if((pixel[1] + activePiece.rotationMatrix[activePiece.rotation][pixelId][1]) > 19){
+						//CANT ROTATE, ON FLOOR
+						canMove = false;
+					}
 					//ONLY DO STATE CHECK IF NECCESSARY - ALSO PREVENTS UNDEFINED TYPE ERROR CAUSED BY CHECKING UNDEFINED ARRAY ELEMENT
 					if(canMove){
 						//CHECK STATE - CHECKS IF ROTATION WILL BE OCCUPIED BY EXISTING PIECE
@@ -345,15 +344,18 @@
 		}
 	}
 	
-	//--
+	//------------
+	//TETRIS PIECE
+	//------------
 	
 	//CREATE PIECE CLASS
 	function Piece(name, x, y) {
 		this.name = name;
 		this.falling = true;
 		this.rotation = 0;
+		this.edges = [];
 		switch(name){
-			case 'cube':
+			case 'cube':  
 				//[2][3]
 				//[0][1]
 				this.colour = '#ff0000';
@@ -365,7 +367,12 @@
 					[[0,0],[0,0],[0,0],[0,0]],
 					[[0,0],[0,0],[0,0],[0,0]],
 					[[0,0],[0,0],[0,0],[0,0]]
-				]
+				];
+				//EDGES ARRAYS DESCRIBES WHICH OF THE FOUR PIXELS TO CHECK BENEATH/LEFT/RIGHT FOR OTHER BLOCKS THAT PREVENT MOVEMENT
+				//KEY IS THE CURRENT ROTATION ORIENTATION
+				this.edges['falling'] = [[2,3],[2,3],[2,3],[2,3]];
+				this.edges['left'] = [[0,2],[0,2],[0,2],[0,2]];
+				this.edges['right'] = [[1,3],[1,3],[1,3],[1,3]];
 			break;
 			case 'el':
 				//[0]
@@ -378,7 +385,10 @@
 					[[-1,+1],[0,0],[+1,-1],[0,-2]],
 					[[-1,-1],[0,0],[+1,+1],[+2,0]],
 					[[+1,-1],[0,0],[-1,+1],[0,+2]]
-				]
+				];
+				this.edges['falling'] = [[2,3],[0,1,3],[0,3],[0,1,2]];
+				this.edges['left'] = [[0,1,2],[2,3],[0,1,3],[0,3]];
+				this.edges['right'] = [[0,1,3],[0,3],[0,1,2],[2,3]];
 			break;
 			case 'jay':
 				//   [0]
@@ -391,7 +401,10 @@
 					[[-1,+1],[0,0],[+1,-1],[+2,0]],
 					[[-1,-1],[0,0],[+1,+1],[0,+2]],
 					[[+1,-1],[0,0],[-1,+1],[-2,0]]
-				]
+				];
+				this.edges['falling'] = [[2,3],[0,1,2],[0,3],[0,1,3]];
+				this.edges['left'] = [[0,1,3],[2,3],[0,1,2],[0,3]];
+				this.edges['right'] = [[0,1,2],[0,3],[0,1,3],[2,3]];
 			break;
 			case 'tie':
 				//[0][1][2]
@@ -403,7 +416,10 @@
 					[[+1,+1],[0,0],[-1,-1],[+1,-1]],
 					[[-1,+1],[0,0],[+1,-1],[+1,+1]],
 					[[-1,-1],[0,0],[+1,+1],[-1,+1]]
-				]
+				];
+				this.edges['falling'] = [[0,2,3],[2,3],[0,1,2],[0,3]];
+				this.edges['left'] = [[0,3],[0,2,3],[2,3],[0,1,2]];
+				this.edges['right'] = [[2,3],[0,1,2],[0,3],[0,2,3]];
 			break;
 			case 'long':
 				//[0]
@@ -417,7 +433,10 @@
 					[[-1,+1],[0,0],[+1,-1],[+2,-2]],
 					[[-1,-1],[0,0],[+1,+1],[+2,+2]],
 					[[+1,-1],[0,0],[-1,+1],[-2,+2]]
-				]
+				];
+				this.edges['falling'] = [[3],[0,1,2,3],[0],[0,1,2,3]];
+				this.edges['left'] = [[0,1,2,3],[3],[0,1,2,3],[0]];
+				this.edges['right'] = [[0,1,2,3],[0],[0,1,2,3],[3]];
 			break;
 			case 'ess':
 				//   [1][0]
@@ -429,7 +448,10 @@
 					[[-1,-1],[0,0],[+1,-1],[+2,0]],
 					[[+1,-1],[0,0],[+1,+1],[0,+2]],
 					[[+1,+1],[0,0],[-1,+1],[-2,0]]
-				]
+				];
+				this.edges['falling'] = [[0,2,3],[0,2],[0,1,3],[1,3]];
+				this.edges['left'] = [[1,3],[0,2,3],[0,2],[0,1,3]];
+				this.edges['right'] = [[0,2],[0,1,3],[1,3],[0,2,3]];
 			break;
 			case 'bed':
 				//[0][1]
@@ -441,7 +463,10 @@
 					[[+1,+1],[0,0],[+1,-1],[0,-2]],
 					[[-1,+1],[0,0],[+1,+1],[+2,0]],
 					[[-1,-1],[0,0],[-1,+1],[0,+2]]
-				]
+				];
+				this.edges['falling'] = [[0,2,3],[1,3],[0,1,3],[0,2]];
+				this.edges['left'] = [[0,2],[0,2,3],[1,3],[0,1,3]];
+				this.edges['right'] = [[1,3],[0,1,3],[0,2],[0,2,3]];
 			break;
 			default:
 				//ERROR
@@ -479,285 +504,21 @@
 		}
 		//SETS THE ARRAY INDEXS TO CHECK SPACES BELOW FOR FALLING, DEPENDANT ON THE PIECE TYPE AND ROTATION
 		this.setFallingEdges = function(){
-			switch(this.rotation){
-				case 0:
-					switch(this.name){
-						case 'cube':
-						case 'el':
-						case 'jay':
-							this.fallingEdges = [2,3];
-						break;
-						case 'tie':
-						case 'ess':
-						case 'bed':
-							this.fallingEdges = [0,2,3];
-						break;
-						case 'long':
-							this.fallingEdges = [3];
-						break;
-					}
-				break;
-				case 1:
-					switch(this.name){
-						case 'cube':
-						case 'tie':
-							this.fallingEdges = [2,3]
-						break;
-						case 'el':
-							this.fallingEdges = [0,1,3];
-						break;
-						case 'jay':
-							this.fallingEdges = [0,1,2];
-						break;
-						case 'long':
-							this.fallingEdges = [0,1,2,3];
-						break;
-						case 'ess':
-							this.fallingEdges = [0,2];
-						break;
-						case 'bed':
-							this.fallingEdges = [1,3];
-						break;
-					}
-				break;
-				case 2:
-					switch(this.name){
-						case 'cube':
-							this.fallingEdges = [2,3]
-						break;
-						case 'el':
-						case 'jay':
-							this.fallingEdges = [0,3];
-						break;
-						case 'tie':
-							this.fallingEdges = [0,1,2];
-						break;
-						case 'long':
-							this.fallingEdges = [0];
-						break;
-						case 'ess':
-						case 'bed':
-							this.fallingEdges = [0,1,3];
-						break;
-					}
-				break;
-				case 3:
-					switch(this.name){
-						case 'cube':
-							this.fallingEdges = [2,3]
-						break;
-						case 'el':
-							this.fallingEdges = [0,1,2];
-						break;
-						case 'jay':
-							this.fallingEdges = [0,1,3];
-						break;
-						case 'tie':
-							this.fallingEdges = [0,3];
-						break;
-						case 'long':
-							this.fallingEdges = [0,1,2,3];
-						break;
-						case 'ess':
-							this.fallingEdges = [1,3];
-						break;
-						case 'bed':
-							this.fallingEdges = [0,2];
-						break;
-					}
-				break;
-				
-			}
+			this.fallingEdges = this.edges['falling'][this.rotation];
 		}
 		//SETS THE ARRAY INDEXS TO CHECK SPACES TO THE LEFT, DEPENDANT ON THE PIECE TYPE AND ROTATION
 		this.setLeftEdges = function(){
-			switch(this.rotation){
-				case 0:
-					switch(this.name){
-						case 'cube':
-						case 'bed':
-							this.leftEdges = [0,2];
-						break;
-						case 'el':
-							this.leftEdges = [0,1,2];
-						break;
-						case 'jay':
-							this.leftEdges = [0,1,3];
-						break;
-						case 'tie':
-							this.leftEdges = [0,3];
-						break;
-						case 'ess':
-							this.leftEdges = [1,3];
-						break;
-						case 'long':
-							this.leftEdges = [0,1,2,3];
-						break;
-					}
-				break;
-				case 1:
-					switch(this.name){
-						case 'cube':
-							this.leftEdges = [0,2];
-						break;
-						case 'el':
-						case 'jay':
-							this.leftEdges = [2,3];
-						break;
-						case 'ess':
-						case 'tie':
-						case 'bed':
-							this.leftEdges = [0,2,3];
-						break;
-						case 'long':
-							this.leftEdges = [3];
-						break;
-					}
-				break;
-				case 2:
-					switch(this.name){
-						case 'cube':
-						case 'ess':
-							this.leftEdges = [0,2];
-						break;
-						case 'el':
-							this.leftEdges = [0,1,3];
-						break;
-						case 'jay':
-							this.leftEdges = [0,1,2];
-						break;
-						case 'tie':
-							this.leftEdges = [2,3];
-						break;
-						case 'long':
-							this.leftEdges = [0,1,2,3];
-						break;
-						case 'bed':
-							this.leftEdges = [1,3];
-						break;
-					}
-				break;
-				case 3:
-					switch(this.name){
-						case 'cube':
-							this.leftEdges = [0,2];
-						break;
-						case 'el':
-						case 'jay':
-							this.leftEdges = [0,3];
-						break;
-						case 'tie':
-							this.leftEdges = [0,1,2];
-						break;
-						case 'long':
-							this.leftEdges = [0];
-						break;
-						case 'ess':
-						case 'bed':
-							this.leftEdges = [0,1,3];
-						break;
-					}
-				break;
-				
-			}
+			this.leftEdges = this.edges['left'][this.rotation];
 		}
 		//SETS THE ARRAY INDEXS TO CHECK SPACES TO THE RIGHT, DEPENDANT ON THE PIECE TYPE AND ROTATION
 		this.setRightEdges = function(){
-			switch(this.rotation){
-				case 0:
-					switch(this.name){
-						case 'cube':
-						case 'bed':
-							this.rightEdges = [1,3];
-						break;
-						case 'el':
-							this.rightEdges = [0,1,3];
-						break;
-						case 'jay':
-							this.rightEdges = [0,1,2];
-						break;
-						case 'tie':
-							this.rightEdges = [2,3];
-						break;
-						case 'ess':
-							this.rightEdges = [0,2];
-						break;
-						case 'long':
-							this.rightEdges = [0,1,2,3];
-						break;
-					}
-				break;
-				case 1:
-					switch(this.name){
-						case 'cube':
-							this.rightEdges = [1,3];
-						break;
-						case 'el':
-							this.rightEdges = [0,3];
-						break;
-						case 'jay':
-							this.rightEdges = [0,3];
-						break;
-						case 'tie':
-							this.rightEdges = [0,1,2];
-						break;
-						case 'long':
-							this.rightEdges = [0];
-						break;
-						case 'ess':
-						case 'bed':
-							this.rightEdges = [0,1,3];
-						break;
-					}
-				break;
-				case 2:
-					switch(this.name){
-						case 'cube':
-						case 'ess':
-							this.rightEdges = [1,3];
-						break;
-						case 'el':
-							this.rightEdges = [0,1,2];
-						break;
-						case 'jay':
-							this.rightEdges = [0,1,3];
-						break;
-						case 'tie':
-							this.rightEdges = [0,3];
-						break;
-						case 'long':
-							this.rightEdges = [0,1,2,3];
-						break;
-						case 'bed':
-							this.rightEdges = [0,2];
-						break;
-					}
-				break;
-				case 3:
-					switch(this.name){
-						case 'cube':
-							this.rightEdges = [1,3];
-						break;
-						case 'el':
-						case 'jay':
-							this.rightEdges = [2,3];
-						break;
-						case 'tie':
-						case 'ess':
-						case 'bed':
-							this.rightEdges = [0,2,3];
-						break;
-						case 'long':
-							this.rightEdges = [3];
-						break;
-					}
-				break;
-				
-			}
+			this.rightEdges = this.edges['right'][this.rotation];
 		}
 	}
 	
-	//--
+	//----------
+	//GAME LOOPS
+	//----------
 
 	//DRAW FUNCTION
 	function draw(){
@@ -935,6 +696,10 @@
 		//ADD ACTIVE PIECE
 		pieces.push(activePiece);
 	}
+	
+	//--------------------
+	//CLEAR LINE FUNCTIONS
+	//--------------------
 	
 	//CHECK FOR COMPLETED LINE
 	function checkRow(){
